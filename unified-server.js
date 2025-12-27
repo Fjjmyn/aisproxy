@@ -202,8 +202,14 @@ class BrowserAutomationServer {
 
   _loadInstanceConfigurations() {
     const instances = [];
-    
+
     for (const index of this.authSource.availableIndices) {
+      const authData = this.authSource.getAuth(index);
+      if (!authData) {
+        this.logger.error(`无法获取认证源 #${index} 的数据`);
+        continue;
+      }
+
       instances.push({
         instanceUrl: this.config.instanceUrl,
         headless: this.config.headless,
@@ -212,11 +218,13 @@ class BrowserAutomationServer {
           type: this.authSource.authMode,
           identifier: `AUTH_JSON_${index}`,
           display_name: `AUTH_JSON_${index}`,
-          index: index
+          index: index,
+          cookies: authData.cookies || [],
+          accountName: authData.accountName || 'N/A'
         }
       });
     }
-    
+
     return instances;
   }
 
@@ -292,6 +300,9 @@ class BrowserAutomationServer {
         status: 'healthy',
         browser_instances: totalCount,
         running_instances: runningCount,
+        instance_url: this.config.instanceUrl,
+        headless: this.config.headless,
+        proxy: this.config.proxy,
         message: `Application is running with ${runningCount} active browser instances`,
         processes: processInfo
       });
@@ -345,17 +356,17 @@ ${processInfo.map(p => `<span class="label">${p.display_name}</span>: ${p.is_ali
             fetch('/health').then(response => response.json()).then(data => {
                 const statusPre = document.querySelector('#status-section pre');
                 const processStatus = data.processes.map(p => 
-                    `<span class="label">${p.display_name}</span>: ${p.is_alive ? '运行中' : '已停止'} (运行时间: ${p.uptime_formatted})`
-                ).join('\n');
+                    '<span class="label">' + p.display_name + '</span>: ' + (p.is_alive ? '运行中' : '已停止') + ' (运行时间: ' + p.uptime_formatted + ')'
+                ).join('\\n');
                 statusPre.innerHTML = 
-                    '<span class="label">服务状态</span>: <span class="status-ok">Running</span>\n' +
-                    '<span class="label">总实例数</span>: ' + data.browser_instances + '\n' +
-                    '<span class="label">运行中的实例</span>: ' + data.running_instances + '\n' +
-                    '--- 配置信息 ---\n' +
-                    '<span class="label">实例 URL</span>: ' + '${this.config.instanceUrl}' + '\n' +
-                    '<span class="label">无头模式</span>: ' + (${this.config.headless} ? '已启用' : '已禁用') + '\n' +
-                    '<span class="label">代理</span>: ' + ('${this.config.proxy}' || '未设置') + '\n' +
-                    '--- 进程状态 ---\n' +
+                    '<span class="label">服务状态</span>: <span class="status-ok">Running</span>\\n' +
+                    '<span class="label">总实例数</span>: ' + data.browser_instances + '\\n' +
+                    '<span class="label">运行中的实例</span>: ' + data.running_instances + '\\n' +
+                    '--- 配置信息 ---\\n' +
+                    '<span class="label">实例 URL</span>: ' + data.instance_url + '\\n' +
+                    '<span class="label">无头模式</span>: ' + (data.headless ? '已启用' : '已禁用') + '\\n' +
+                    '<span class="label">代理</span>: ' + (data.proxy || '未设置') + '\\n' +
+                    '--- 进程状态 ---\\n' +
                     processStatus;
             }).catch(error => console.error('Error fetching new content:', error));
         }
