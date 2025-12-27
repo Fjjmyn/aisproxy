@@ -219,8 +219,9 @@ class BrowserAutomationServer {
           identifier: `AUTH_JSON_${index}`,
           display_name: `AUTH_JSON_${index}`,
           index: index,
-          cookies: authData.cookies || [],
-          accountName: authData.accountName || 'N/A'
+          accountName: authData.accountName || 'N/A',
+          // 支持完整 storageState（cookies、localStorage、sessionStorage）
+          storageState: authData.storageState || { cookies: authData.cookies || [] }
         }
       });
     }
@@ -235,32 +236,45 @@ class BrowserAutomationServer {
       return;
     }
 
+    this.logger.info(`================ [ 启动浏览器实例 ] ================`);
     this.logger.info(`将启动 ${instances.length} 个浏览器实例`);
+    this.logger.info(`目标 URL: ${this.config.instanceUrl}`);
+    this.logger.info(`启动间隔: ${this.config.startDelay} 秒`);
+    this.logger.info(`=================================================`);
 
     for (let i = 0; i < instances.length; i++) {
       if (this.shutdownEvent.isSet()) break;
 
       const config = instances[i];
-      this.logger.info(`正在启动第 ${i + 1}/${instances.length} 个浏览器实例 (${config.authSource.display_name})...`);
+      this.logger.info(`[${i + 1}/${instances.length}] 正在启动浏览器实例: ${config.authSource.display_name}`);
 
       try {
         const process = this.processManager.spawnBrowserInstance(config);
+        this.logger.info(`[${i + 1}/${instances.length}] 进程 #${process.pid} 已启动`);
         
         // 等待配置的时间
         await new Promise(resolve => setTimeout(resolve, this.config.startDelay * 1000));
       } catch (error) {
-        this.logger.error(`启动浏览器实例失败: ${error.message}`);
+        this.logger.error(`[${i + 1}/${instances.length}] 启动失败: ${error.message}`);
       }
     }
 
     // 等待所有进程
+    this.logger.info(`================ [ 进程监控中... ] ================`);
     while (!this.shutdownEvent.isSet()) {
       const aliveCount = this.processManager.getAliveCount();
-      this.logger.info(`当前运行的浏览器实例数: ${aliveCount}`);
+      const totalCount = this.processManager.getCount();
+      const processInfo = this.processManager.getProcessInfo();
 
       if (aliveCount === 0) {
         this.logger.info('所有浏览器进程已结束，主进程即将退出');
         break;
+      }
+
+      // 输出进程状态
+      for (const proc of processInfo) {
+        const status = proc.is_alive ? '✓ 运行' : '✗ 停止';
+        this.logger.info(`  ${status} - ${proc.display_name} (PID: ${proc.pid}, 运行时长: ${proc.uptime_formatted})`);
       }
 
       await new Promise(resolve => setTimeout(resolve, 10000));
