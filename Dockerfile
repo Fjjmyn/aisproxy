@@ -22,6 +22,9 @@ RUN curl -sSL ${CAMOUFOX_URL} -o camoufox-linux.tar.gz && \
     rm camoufox-linux.tar.gz && \
     chmod +x /app/camoufox-linux/camoufox
 
+# 设置 Camoufox 可执行文件路径环境变量
+ENV CAMOUFOX_EXECUTABLE_PATH=/app/camoufox-linux/camoufox
+
 # 4. 拷贝代码文件（移除 black-browser.js，添加 lib/ 目录）
 COPY unified-server.js ./
 COPY lib/ ./lib/
