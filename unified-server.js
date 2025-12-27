@@ -220,7 +220,9 @@ class BrowserAutomationServer {
           display_name: `AUTH_JSON_${index}`,
           index: index,
           accountName: authData.accountName || 'N/A',
-          // 支持完整 storageState（cookies、localStorage、sessionStorage）
+          // 直接传递 cookies 数组（来自 AUTH_JSON_N 环境变量或 auth-N.json 文件）
+          cookies: authData.cookies || [],
+          // 支持完整 storageState（包含 cookies、localStorage、sessionStorage）
           storageState: authData.storageState || { cookies: authData.cookies || [] }
         }
       });
